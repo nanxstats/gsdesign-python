@@ -6,7 +6,7 @@ from the original C and C++ implementations in gsDesign.
 
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from typing import Iterable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -31,7 +31,7 @@ def gridpts(
     mu: float = 0.0,
     a: float = -np.inf,
     b: float = np.inf,
-) -> Tuple[FloatArray, FloatArray]:
+) -> tuple[FloatArray, FloatArray]:
     """
     Construct Simpson's rule grid points for canonical normal integration.
 
@@ -97,7 +97,7 @@ def h1(
     info: float = 1.0,
     a: float = -np.inf,
     b: float = np.inf,
-) -> Tuple[FloatArray, FloatArray, FloatArray]:
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     """
     Initialize the density grid for the first group sequential analysis.
 
@@ -130,8 +130,8 @@ def hupdate(
     b: float,
     theta_prev: float,
     info_prev: float,
-    gm1: Tuple[Iterable[float], Iterable[float], Iterable[float]],
-) -> Tuple[FloatArray, FloatArray, FloatArray]:
+    gm1: tuple[Iterable[float], Iterable[float], Iterable[float]],
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     """
     Update the density grid for a subsequent group sequential analysis.
 
@@ -143,7 +143,7 @@ def hupdate(
         b: Upper integration limit; use ``numpy.inf`` for no truncation.
         theta_prev: Canonical drift parameter at the previous analysis.
         info_prev: Fisher information at the previous analysis; must be positive.
-        gm1: Tuple ``(z_prev, w_prev, h_prev)`` from ``h1`` or ``hupdate``.
+        gm1: tuple ``(z_prev, w_prev, h_prev)`` from ``h1`` or ``hupdate``.
 
     Returns:
         A tuple of arrays ``(z, w, h)`` updated for the current analysis.
