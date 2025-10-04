@@ -1,0 +1,14 @@
+# Changelog
+
+## gsdesign-python 0.0.1
+
+### New features
+
+- Ported the canonical `gridpts`, `h1`, and `hupdate` numerical integration
+  routines from gsDesign, complete with typed public exports.
+
+### Testing
+
+- Added unit tests with high-precision reference fixtures and regeneration
+  tooling under to keep the Python implementation aligned with the R package
+  gsDesign2.
