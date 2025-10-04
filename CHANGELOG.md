@@ -10,5 +10,5 @@
 ### Testing
 
 - Added unit tests with high-precision reference fixtures and regeneration
-  tooling under to keep the Python implementation aligned with the R package
+  tooling to keep the Python implementation aligned with the R package
   gsDesign2.
