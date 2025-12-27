@@ -6,58 +6,51 @@ from typing import cast
 
 import numpy as np
 import pytest
-from pytest_r_snapshot import (  # type: ignore[import-untyped]
-    RSnapshotSettings,
-    SnapshotMode,
-)
 
 from gsdesign import gridpts, h1, hupdate
 
 GRIDPTS_SNAPSHOT = "gridpts_r5_mu0.5_a-2_b2"
 H1_SNAPSHOT = "h1_r5_theta0.5_info2_a-2_b2"
 HUPDATE_SNAPSHOT = "hupdate_r5_theta0.5_info2.5_thetaprev0.3_infoprev1.5_a-2_b2"
+NORMALIZE_PRECISION = 12
 
 
-def _snapshot_text(
-    r_snapshot,
-    r_snapshot_effective_settings: RSnapshotSettings,
-    *,
-    name: str,
-) -> str:
-    mode = r_snapshot_effective_settings.mode
-    if mode == SnapshotMode.RECORD:
-        return r_snapshot.record_text(name=name)
-    if mode == SnapshotMode.AUTO:
-        snapshot_path = r_snapshot.path_for(name)
-        if snapshot_path.exists():
-            return r_snapshot.read_text(name=name)
-        return r_snapshot.record_text(name=name)
-    return r_snapshot.read_text(name=name)
-
-
-def _load_snapshot_columns(
-    r_snapshot,
-    r_snapshot_effective_settings: RSnapshotSettings,
-    name: str,
-) -> tuple[np.ndarray, ...]:
-    text = _snapshot_text(
-        r_snapshot,
-        r_snapshot_effective_settings,
-        name=name,
-    )
+def _normalize_matrix_text(text: str) -> str:
     data = np.loadtxt(StringIO(text))
     if data.ndim == 1:
         data = data[:, np.newaxis]
-    arrays = tuple(
-        np.asarray(data[:, idx], dtype=np.float64) for idx in range(data.shape[1])
+    lines = []
+    for row in data:
+        parts = [
+            np.format_float_positional(
+                float(value),
+                precision=NORMALIZE_PRECISION,
+                unique=False,
+                trim="-",
+            )
+            for value in row
+        ]
+        lines.append(" ".join(parts))
+    return "\n".join(lines)
+
+
+def _columns_to_text(*columns: np.ndarray) -> str:
+    buffer = StringIO()
+    np.savetxt(buffer, np.column_stack(columns), fmt="%.16f")
+    return buffer.getvalue().strip()
+
+
+def _assert_snapshot_matrix(r_snapshot, name: str, *columns: np.ndarray) -> None:
+    actual = _columns_to_text(*columns)
+    r_snapshot.assert_match_text(
+        actual,
+        name=name,
+        normalize=_normalize_matrix_text,
     )
-    return arrays
 
 
 @pytest.mark.r_snapshot(GRIDPTS_SNAPSHOT)
-def test_gridpts_matches_reference(
-    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
-) -> None:
+def test_gridpts_matches_reference(r_snapshot) -> None:
     # ```{r, gridpts_r5_mu0.5_a-2_b2}
     # options(digits = 16, scipen = 999)
     # suppressPackageStartupMessages(library(gsDesign2))
@@ -70,20 +63,12 @@ def test_gridpts_matches_reference(
     #   quote = FALSE
     # )
     # ```
-    expected_z, expected_w = _load_snapshot_columns(
-        r_snapshot,
-        r_snapshot_effective_settings,
-        GRIDPTS_SNAPSHOT,
-    )
     z, w = gridpts(r=5, mu=0.5, a=-2.0, b=2.0)
-    np.testing.assert_allclose(z, expected_z, rtol=1e-12, atol=1e-14)
-    np.testing.assert_allclose(w, expected_w, rtol=1e-12, atol=1e-14)
+    _assert_snapshot_matrix(r_snapshot, GRIDPTS_SNAPSHOT, z, w)
 
 
 @pytest.mark.r_snapshot(H1_SNAPSHOT)
-def test_h1_matches_reference(
-    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
-) -> None:
+def test_h1_matches_reference(r_snapshot) -> None:
     # ```{r, h1_r5_theta0.5_info2_a-2_b2}
     # options(digits = 16, scipen = 999)
     # suppressPackageStartupMessages(library(gsDesign2))
@@ -96,21 +81,12 @@ def test_h1_matches_reference(
     #   quote = FALSE
     # )
     # ```
-    expected_z, expected_w, expected_h = _load_snapshot_columns(
-        r_snapshot,
-        r_snapshot_effective_settings,
-        H1_SNAPSHOT,
-    )
     z, w, h_vals = h1(r=5, theta=0.5, info=2.0, a=-2.0, b=2.0)
-    np.testing.assert_allclose(z, expected_z, rtol=1e-12, atol=1e-14)
-    np.testing.assert_allclose(w, expected_w, rtol=1e-12, atol=1e-14)
-    np.testing.assert_allclose(h_vals, expected_h, rtol=1e-12, atol=1e-14)
+    _assert_snapshot_matrix(r_snapshot, H1_SNAPSHOT, z, w, h_vals)
 
 
 @pytest.mark.r_snapshot(HUPDATE_SNAPSHOT)
-def test_hupdate_matches_reference(
-    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
-) -> None:
+def test_hupdate_matches_reference(r_snapshot) -> None:
     # ```{r, hupdate_r5_theta0.5_info2.5_thetaprev0.3_infoprev1.5_a-2_b2}
     # options(digits = 16, scipen = 999)
     # suppressPackageStartupMessages(library(gsDesign2))
@@ -133,11 +109,6 @@ def test_hupdate_matches_reference(
     #   quote = FALSE
     # )
     # ```
-    expected_z, expected_w, expected_h = _load_snapshot_columns(
-        r_snapshot,
-        r_snapshot_effective_settings,
-        HUPDATE_SNAPSHOT,
-    )
     gm1 = h1(r=5, theta=0.3, info=1.5, a=-2.0, b=2.0)
     z, w, h_vals = hupdate(
         r=5,
@@ -149,9 +120,7 @@ def test_hupdate_matches_reference(
         info_prev=1.5,
         gm1=gm1,
     )
-    np.testing.assert_allclose(z, expected_z, rtol=1e-12, atol=1e-14)
-    np.testing.assert_allclose(w, expected_w, rtol=1e-12, atol=1e-14)
-    np.testing.assert_allclose(h_vals, expected_h, rtol=1e-12, atol=1e-14)
+    _assert_snapshot_matrix(r_snapshot, HUPDATE_SNAPSHOT, z, w, h_vals)
 
 
 def test_gridpts_supports_infinite_bounds() -> None:
