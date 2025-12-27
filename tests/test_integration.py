@@ -1,19 +1,48 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from pathlib import Path
+from io import StringIO
 from typing import cast
 
 import numpy as np
 import pytest
+from pytest_r_snapshot import RSnapshotSettings, SnapshotMode
 
 from gsdesign import gridpts, h1, hupdate
 
-FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
+GRIDPTS_SNAPSHOT = "gridpts_r5_mu0.5_a-2_b2"
+H1_SNAPSHOT = "h1_r5_theta0.5_info2_a-2_b2"
+HUPDATE_SNAPSHOT = "hupdate_r5_theta0.5_info2.5_thetaprev0.3_infoprev1.5_a-2_b2"
 
 
-def load_columns(filename: str) -> tuple[np.ndarray, ...]:
-    data = np.loadtxt(FIXTURE_DIR / filename)
+def _snapshot_text(
+    r_snapshot,
+    r_snapshot_effective_settings: RSnapshotSettings,
+    *,
+    name: str,
+) -> str:
+    mode = r_snapshot_effective_settings.mode
+    if mode == SnapshotMode.RECORD:
+        return r_snapshot.record_text(name=name)
+    if mode == SnapshotMode.AUTO:
+        snapshot_path = r_snapshot.path_for(name)
+        if snapshot_path.exists():
+            return r_snapshot.read_text(name=name)
+        return r_snapshot.record_text(name=name)
+    return r_snapshot.read_text(name=name)
+
+
+def _load_snapshot_columns(
+    r_snapshot,
+    r_snapshot_effective_settings: RSnapshotSettings,
+    name: str,
+) -> tuple[np.ndarray, ...]:
+    text = _snapshot_text(
+        r_snapshot,
+        r_snapshot_effective_settings,
+        name=name,
+    )
+    data = np.loadtxt(StringIO(text))
     if data.ndim == 1:
         data = data[:, np.newaxis]
     arrays = tuple(
@@ -22,24 +51,89 @@ def load_columns(filename: str) -> tuple[np.ndarray, ...]:
     return arrays
 
 
-def test_gridpts_matches_reference() -> None:
-    expected_z, expected_w = load_columns("gridpts_r5_mu0.5_a-2_b2.txt")
+@pytest.mark.r_snapshot(GRIDPTS_SNAPSHOT)
+def test_gridpts_matches_reference(
+    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
+) -> None:
+    # ```{r, gridpts_r5_mu0.5_a-2_b2}
+    # options(digits = 16, scipen = 999)
+    # suppressPackageStartupMessages(library(gsDesign2))
+    # g <- gsDesign2:::gridpts(r = 5, mu = 0.5, a = -2, b = 2)
+    # write.table(
+    #   cbind(g$z, g$w),
+    #   file = "",
+    #   row.names = FALSE,
+    #   col.names = FALSE,
+    #   quote = FALSE
+    # )
+    # ```
+    expected_z, expected_w = _load_snapshot_columns(
+        r_snapshot,
+        r_snapshot_effective_settings,
+        GRIDPTS_SNAPSHOT,
+    )
     z, w = gridpts(r=5, mu=0.5, a=-2.0, b=2.0)
     np.testing.assert_allclose(z, expected_z, rtol=1e-12, atol=1e-14)
     np.testing.assert_allclose(w, expected_w, rtol=1e-12, atol=1e-14)
 
 
-def test_h1_matches_reference() -> None:
-    expected_z, expected_w, expected_h = load_columns("h1_r5_theta0.5_info2_a-2_b2.txt")
+@pytest.mark.r_snapshot(H1_SNAPSHOT)
+def test_h1_matches_reference(
+    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
+) -> None:
+    # ```{r, h1_r5_theta0.5_info2_a-2_b2}
+    # options(digits = 16, scipen = 999)
+    # suppressPackageStartupMessages(library(gsDesign2))
+    # h1_ref <- gsDesign2:::h1(r = 5, theta = 0.5, info = 2, a = -2, b = 2)
+    # write.table(
+    #   cbind(h1_ref$z, h1_ref$w, h1_ref$h),
+    #   file = "",
+    #   row.names = FALSE,
+    #   col.names = FALSE,
+    #   quote = FALSE
+    # )
+    # ```
+    expected_z, expected_w, expected_h = _load_snapshot_columns(
+        r_snapshot,
+        r_snapshot_effective_settings,
+        H1_SNAPSHOT,
+    )
     z, w, h_vals = h1(r=5, theta=0.5, info=2.0, a=-2.0, b=2.0)
     np.testing.assert_allclose(z, expected_z, rtol=1e-12, atol=1e-14)
     np.testing.assert_allclose(w, expected_w, rtol=1e-12, atol=1e-14)
     np.testing.assert_allclose(h_vals, expected_h, rtol=1e-12, atol=1e-14)
 
 
-def test_hupdate_matches_reference() -> None:
-    expected_z, expected_w, expected_h = load_columns(
-        "hupdate_r5_theta0.5_info2.5_thetaprev0.3_infoprev1.5_a-2_b2.txt"
+@pytest.mark.r_snapshot(HUPDATE_SNAPSHOT)
+def test_hupdate_matches_reference(
+    r_snapshot, r_snapshot_effective_settings: RSnapshotSettings
+) -> None:
+    # ```{r, hupdate_r5_theta0.5_info2.5_thetaprev0.3_infoprev1.5_a-2_b2}
+    # options(digits = 16, scipen = 999)
+    # suppressPackageStartupMessages(library(gsDesign2))
+    # gm1 <- gsDesign2:::h1(r = 5, theta = 0.3, info = 1.5, a = -2, b = 2)
+    # hupdate_ref <- gsDesign2:::hupdate(
+    #   r = 5,
+    #   theta = 0.5,
+    #   info = 2.5,
+    #   a = -2,
+    #   b = 2,
+    #   thetam1 = 0.3,
+    #   im1 = 1.5,
+    #   gm1 = gm1
+    # )
+    # write.table(
+    #   cbind(hupdate_ref$z, hupdate_ref$w, hupdate_ref$h),
+    #   file = "",
+    #   row.names = FALSE,
+    #   col.names = FALSE,
+    #   quote = FALSE
+    # )
+    # ```
+    expected_z, expected_w, expected_h = _load_snapshot_columns(
+        r_snapshot,
+        r_snapshot_effective_settings,
+        HUPDATE_SNAPSHOT,
     )
     gm1 = h1(r=5, theta=0.3, info=1.5, a=-2.0, b=2.0)
     z, w, h_vals = hupdate(
