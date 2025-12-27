@@ -6,7 +6,10 @@ from typing import cast
 
 import numpy as np
 import pytest
-from pytest_r_snapshot import RSnapshotSettings, SnapshotMode
+from pytest_r_snapshot import (  # type: ignore[import-untyped]
+    RSnapshotSettings,
+    SnapshotMode,
+)
 
 from gsdesign import gridpts, h1, hupdate
 
