@@ -1,5 +1,13 @@
 # Changelog
 
+## gsdesign-python 0.1.4
+
+### Testing
+
+- Refactored integration tests to use `pytest-r-snapshot` for R snapshot
+  generation and management, replacing legacy fixture files with
+  snapshot-based assertions (#16).
+
 ## gsdesign-python 0.1.3
 
 ### Maintenance
