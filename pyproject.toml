@@ -1,6 +1,6 @@
 [project]
 name = "gsdesign"
-version = "0.1.3"
+version = "0.1.4"
 description = "Group sequential design"
 authors = [
     { name = "Nan Xiao", email = "me@nanx.me" }
